@@ -1,0 +1,9 @@
+requests
+tqdm
+beautifulsoup4
+pandas
+SQLAlchemy
+PyMySQL
+cryptography
+fastapi
+uvicorn

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  mysqldb:
+    image: mysql/mysql-server
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+    volumes:
+      # - ./mysql-init.sql:/tmp/mysql-init.sql
+      - mysql:/var/lib/mysql
+  web:
+    build:
+      context: ./web_service
+    ports:
+      - 8000:5000
+    volumes:
+      - ./web_service:/DNL/web_service
+    depends_on:
+      - mysqldb
+
+volumes:
+  mysql:
