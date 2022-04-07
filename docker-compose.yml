@@ -7,19 +7,21 @@ services:
     ports:
       - 3306:3306
     environment:
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=password
       - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=manufacturers
     volumes:
-      # - ./mysql-init.sql:/tmp/mysql-init.sql
       - mysql:/var/lib/mysql
   web:
     build:
       context: ./web_service
+    depends_on:
+      - mysqldb
     ports:
       - 8000:5000
     volumes:
       - ./web_service:/DNL/web_service
-    depends_on:
-      - mysqldb
 
 volumes:
   mysql:
