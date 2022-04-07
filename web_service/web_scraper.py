@@ -2,6 +2,7 @@ import requests
 import time
 
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 import pandas as pd
 from sqlalchemy.sql import text
 
@@ -11,13 +12,28 @@ from logger import Logger
 
 class WebScraper:
     def __init__(self, database: Database):
+        """
+        A class to scrape data from the site and put it into database
+        Parameters:
+            * database - Database class instance
+        Attributes:
+            * logger - a logger
+            * URL - The site to scrape
+            * url_header - Initial site header. the place where scraping starts
+            * database - Database class instance
+        """
         self.logger = Logger('web-scraper')
         self.URL = 'https://www.urparts.com'
         self.url_header = 'index.cfm/page/catalogue'
         self.database = database
 
     @staticmethod
-    def comprehension_catch(item):
+    def comprehension_catch(item: Tag) -> tuple:
+        """
+        Try to unwrap [art number and category
+        Returns:
+            * A tuple of part_number and part_category
+        """
         part_number = item.contents[0].split(' - ')[0].strip()
 
         try:
@@ -27,7 +43,15 @@ class WebScraper:
 
         return part_number, part_category
 
-    def get_soup(self, url_header: str, max_retries: int = 5):
+    def get_soup(self, url_header: str, max_retries: int = 5) -> Tag:
+        """
+        Parse page content and return "mostly" parsed soup
+        Parameters:
+            * url_header - a header of page to parse
+            * max_retries - max retries if connection is lost
+        Returns:
+            * Soup
+        """
         url = f'{self.URL}/{url_header}'
         while max_retries > 0:
             try:
@@ -51,7 +75,12 @@ class WebScraper:
         soup = soup.find('div', id='contentWrapWide')
         return soup
 
-    def scrape_site(self):
+    def scrape_site(self) -> int:
+        """
+        Scrape the site and put data into database
+        Returns:
+            * Number of processed rows
+        """
         soup = self.get_soup(self.url_header)
         soup = soup.find('div', class_='c_container allmakes')
         manufacturers = [[item.contents[0].strip(), item['href']] for item in soup.find_all('a')]
@@ -103,6 +132,11 @@ class WebScraper:
         return processed_rows
 
     def scrape(self, num_attempts=3):
+        """
+        Scrape the site
+        Parameters:
+            * num_attempts - attempts to recconect if connection is lost
+        """
         while num_attempts > 0:
             try:
                 processed_rows = self.scrape_site()
@@ -112,6 +146,10 @@ class WebScraper:
                 num_attempts -= 1
                 self.logger.warning(f'Connection failed, attempts left: {num_attempts}')
                 if num_attempts == 0:
+                    self.logger.error(f'Dropping database')
+                    with self.database.engine.connect() as connection:
+                        statement = text(f"DROP DATABASE IF EXISTS {self.database.database}")
+                        connection.execute(statement)
                     raise err
 
 

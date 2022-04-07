@@ -35,17 +35,26 @@ def startup():
 
 
 @app.get("/db/")
-def test(manufacturer: Optional[str] = Query(None, description="Manufacturer name to query", example="TestTest"),
-         category: Optional[str] = Query(None, description="Category name to query", example="TestTest"),
-         model: Optional[str] = Query(None, description="Model name to query", example="TestTest"),
-         part_category: Optional[str] = Query(None, description="Part category name to query", example="TestTest"),
-         part_number: Optional[str] = Query(None, description="Part number name to query", example="TestTest")):
+def query_db(manufacturer: Optional[str] = Query(None, description="Manufacturer name to query", example="TestTest"),
+             category: Optional[str] = Query(None, description="Category name to query", example="TestTest"),
+             model: Optional[str] = Query(None, description="Model name to query", example="TestTest"),
+             part_category: Optional[str] = Query(None, description="Part category name to query", example="TestTest"),
+             part_number: Optional[str] = Query(None, description="Part number name to query", example="TestTest")):
+    """
+    Get query parameters from host,  query the database and return result.
+    returns:
+        * Dataframe
+    Python example:
+        requests.get(url, params={'manufacturer': 'Bomag', 'category': 'Roller Parts'})
+    URL example:
+        http://<url>/db/?manufacturer=Bomag&category=Roller%20Parts
+    """
     sql_script = "select * from manufacturers.manufacturers_table"
     filtering = []
     if manufacturer:
         filtering.append(f'manufacturer = \'{manufacturer}\'')
     if category:
-        filtering.append(f'catogory = \'{category}\'')
+        filtering.append(f'category = \'{category}\'')
     if model:
         filtering.append(f'model = \'{model}\'')
     if part_category:
@@ -54,14 +63,11 @@ def test(manufacturer: Optional[str] = Query(None, description="Manufacturer nam
         filtering.append(f'part_number = \'{part_number}\'')
 
     if filtering != []:
-        filtering = '\' AND \''.join(filtering)
+        filtering = ' AND '.join(filtering)
         sql_script = sql_script + ' WHERE ' + filtering
-    sql_script = sql_script + ' LIMIT 5' + ';'
-    # sql_script = sql_script + ';'
-
+    sql_script = sql_script + ';'
     try:
         query_result = pd.read_sql(sql_script, con=db.engine)
+        return query_result
     except Exception as err:
         HTTPException(status_code=404, detail=err)
-
-    return query_result
