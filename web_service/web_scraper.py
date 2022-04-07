@@ -65,6 +65,8 @@ class WebScraper:
                     with self.database.engine.connect() as connection:
                         statement = text(f"DROP DATABASE IF EXISTS {self.database.database}")
                         connection.execute(statement)
+                        connection.execute(statement)
+                        statement = text(f"CREATE DATABASE {self.database.database}")
                     raise err
                 self.logger.warning(f'Connection error {url_header} ... Attempts left {max_retries}')
                 time.sleep(10)
@@ -149,6 +151,8 @@ class WebScraper:
                     self.logger.error(f'Dropping database')
                     with self.database.engine.connect() as connection:
                         statement = text(f"DROP DATABASE IF EXISTS {self.database.database}")
+                        connection.execute(statement)
+                        statement = text(f"CREATE DATABASE {self.database.database}")
                         connection.execute(statement)
                     raise err
 

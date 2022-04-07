@@ -1,6 +1,7 @@
 import configparser
 import time
 
+import sqlalchemy
 from sqlalchemy import create_engine
 
 from logger import Logger
@@ -59,3 +60,7 @@ class Database():
                     raise err
                 self.logger.warning(f'Connection error... Attempts left {max_retries}')
                 time.sleep(10)
+
+    def create_alcheny_table(self):
+        metadata = sqlalchemy.MetaData()
+        self.alchemy_table = sqlalchemy.Table(self.table, metadata, autoload=True, autoload_with=self.engine)

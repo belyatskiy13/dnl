@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, HTTPException, Query
 import pandas as pd
+import sqlalchemy
 from sqlalchemy.sql import text
 
 from database import Database
@@ -32,42 +33,52 @@ def startup():
         logger.info('Filling database with data')
         ws = WebScraper(database=db)
         ws.scrape()
+    db.create_alcheny_table()
 
 
 @app.get("/db/")
-def query_db(manufacturer: Optional[str] = Query(None, description="Manufacturer name to query", example="TestTest"),
-             category: Optional[str] = Query(None, description="Category name to query", example="TestTest"),
-             model: Optional[str] = Query(None, description="Model name to query", example="TestTest"),
-             part_category: Optional[str] = Query(None, description="Part category name to query", example="TestTest"),
-             part_number: Optional[str] = Query(None, description="Part number name to query", example="TestTest")):
+def query_db(manufacturer: Optional[List[str]] = Query(None,
+                                                       description="Manufacturer name to query",
+                                                       example="TestTest"),
+             category: Optional[List[str]] = Query(None,
+                                                   description="Category name to query",
+                                                   example="TestTest"),
+             model: Optional[List[str]] = Query(None,
+                                                description="Model name to query",
+             example="TestTest"),
+             part_category: Optional[List[str]] = Query(None,
+                                                        description="Part category name to query",
+                                                        example="TestTest"),
+             part_number: Optional[List[str]] = Query(None,
+                                                      description="Part number name to query",
+                                                      example="TestTest")):
     """
     Get query parameters from host,  query the database and return result.
     returns:
         * Dataframe
     Python example:
-        requests.get(url, params={'manufacturer': 'Bomag', 'category': 'Roller Parts'})
+        requests.get(url, params={'manufacturer': ['Bomag'], 'category': ['Roller Parts']})
     URL example:
-        http://<url>/db/?manufacturer=Bomag&category=Roller%20Parts
+        http://<url>/db/?manufacturer=Bomag&model=BW100&model=BW900
     """
-    sql_script = "select * from manufacturers.manufacturers_table"
-    filtering = []
+    query = sqlalchemy.select([db.alchemy_table])
     if manufacturer:
-        filtering.append(f'manufacturer = \'{manufacturer}\'')
+        query = query.where(db.alchemy_table.columns.manufacturer.in_(manufacturer))
     if category:
-        filtering.append(f'category = \'{category}\'')
+        query = query.where(db.alchemy_table.columns.category.in_(category))
     if model:
-        filtering.append(f'model = \'{model}\'')
+        query = query.where(db.alchemy_table.columns.model.in_(model))
     if part_category:
-        filtering.append(f'part_category = \'{part_category}\'')
+        query = query.where(db.alchemy_table.columns.part_category.in_(part_category))
     if part_number:
-        filtering.append(f'part_number = \'{part_number}\'')
+        query = query.where(db.alchemy_table.columns.part_number.in_(part_number))
 
-    if filtering != []:
-        filtering = ' AND '.join(filtering)
-        sql_script = sql_script + ' WHERE ' + filtering
-    sql_script = sql_script + ';'
     try:
-        query_result = pd.read_sql(sql_script, con=db.engine)
-        return query_result
+        ResultProxy = db.connection.execute(query)
+        ResultSet = ResultProxy.fetchall()
+
+        df = pd.DataFrame(ResultSet)
+        df.columns = ResultSet[0].keys()
+        return df
     except Exception as err:
-        HTTPException(status_code=404, detail=err)
+        raise HTTPException(status_code=404, detail=err)
