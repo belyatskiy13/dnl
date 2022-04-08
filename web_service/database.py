@@ -2,7 +2,6 @@ import configparser
 import time
 
 import sqlalchemy
-from sqlalchemy import create_engine
 
 from logger import Logger
 
@@ -37,7 +36,7 @@ class Database():
             * engine - Connection engine
             * connection - Database connection
         """
-        engine = create_engine(f'mysql+pymysql://{self.user}:{self.password}@{self.host}/{self.database}')
+        engine = sqlalchemy.create_engine(f'mysql+pymysql://{self.user}:{self.password}@{self.host}/{self.database}')
         self.engine = engine
         self.connection = engine.connect()
 
@@ -47,6 +46,7 @@ class Database():
         Parameters:
             * max_retries - max tries to reconnect
         """
+        # Reconnection loop, in case mysql container is not started or smth
         while max_retries > 0:
             try:
                 self.logger.info('Connecting...')
@@ -61,6 +61,20 @@ class Database():
                 self.logger.warning(f'Connection error... Attempts left {max_retries}')
                 time.sleep(10)
 
-    def create_alcheny_table(self):
+    def create_alchemy_table(self):
+        """
+        Connect to manufacturers table
+        """
         metadata = sqlalchemy.MetaData()
         self.alchemy_table = sqlalchemy.Table(self.table, metadata, autoload=True, autoload_with=self.engine)
+
+    def die_and_rise(self):
+        """
+        In case something went wrong on filling database up.
+        The function drops and creates the database again&
+        """
+        self.logger.error(f'Dropping database')
+        statement = sqlalchemy.sql.text(f"DROP DATABASE IF EXISTS {self.database.database}")
+        self.connection.execute(statement)
+        statement = sqlalchemy.sql.text(f"CREATE DATABASE {self.database.database}")
+        self.connection.execute(statement)

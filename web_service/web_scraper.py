@@ -4,7 +4,6 @@ import time
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 import pandas as pd
-from sqlalchemy.sql import text
 
 from database import Database
 from logger import Logger
@@ -61,12 +60,7 @@ class WebScraper:
                 max_retries -= 1
                 if max_retries == 0:
                     self.logger.error(f'Connection failed - {url_header}')
-                    self.logger.error(f'Dropping database')
-                    with self.database.engine.connect() as connection:
-                        statement = text(f"DROP DATABASE IF EXISTS {self.database.database}")
-                        connection.execute(statement)
-                        connection.execute(statement)
-                        statement = text(f"CREATE DATABASE {self.database.database}")
+                    db.die_and_rise()
                     raise err
                 self.logger.warning(f'Connection error {url_header} ... Attempts left {max_retries}')
                 time.sleep(10)
@@ -83,10 +77,12 @@ class WebScraper:
         Returns:
             * Number of processed rows
         """
+        # Get manufacturers list
         soup = self.get_soup(self.url_header)
         soup = soup.find('div', class_='c_container allmakes')
         manufacturers = [[item.contents[0].strip(), item['href']] for item in soup.find_all('a')]
 
+        # For every manufacturer get its categories
         processed_rows = 0
         for manufacturer in manufacturers:
             self.logger.info(f'Scraping {manufacturer}')
@@ -98,6 +94,7 @@ class WebScraper:
                 manufacturer[1] = manufacturer[1].replace(' ', '%20')
                 self.logger.warning(f'URL - {self.URL}/{manufacturer[1]} - is broken')
 
+            # For every manufacturer's category get models list
             all_models = pd.DataFrame()
             for category in categories:
                 try:
@@ -108,6 +105,7 @@ class WebScraper:
                     category[1] = category[1].replace(' ', '%20')
                     self.logger.warning(f'URL - {self.URL}/{category[1]} - is broken')
 
+                # For every model get list of parts and part categories
                 all_parts = pd.DataFrame()
                 for model in models:
                     try:
@@ -146,14 +144,9 @@ class WebScraper:
                 self.logger.info(f'{processed_rows} rows processed')
             except ConnectionError as err:
                 num_attempts -= 1
+                db.die_and_rise()
                 self.logger.warning(f'Connection failed, attempts left: {num_attempts}')
                 if num_attempts == 0:
-                    self.logger.error(f'Dropping database')
-                    with self.database.engine.connect() as connection:
-                        statement = text(f"DROP DATABASE IF EXISTS {self.database.database}")
-                        connection.execute(statement)
-                        statement = text(f"CREATE DATABASE {self.database.database}")
-                        connection.execute(statement)
                     raise err
 
 
