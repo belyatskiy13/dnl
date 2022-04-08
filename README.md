@@ -1,6 +1,6 @@
 ## Description
 
-THe project is mysql database and an api to query the database.
+The project is mysql database and an api to query the database.
 
 ## Project structure
     .
