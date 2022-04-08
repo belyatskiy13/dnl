@@ -3,6 +3,7 @@
 THe project is mysql database and an api to query the database.
 
 ## Project structure
+###
 .
 ├── web_service                 # Web service. Python part of the project
 │   ├── logger.py               # A Logger class. Just for info messages
